@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lattice de Bewley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Tablero de instrumento: panel de parámetros a la izquierda, lámina del diagrama y osciloscopios a la derecha */
+:root{
+  --bg:#eceff3; --panel:#fbfcfd; --field:#f2f4f7; --ink:#17202a; --mut:#586676; --line:#d0d7df; --band:#e3e8ee;
+  --fw:#2452a6; --bk:#b35a07; --cur:#0c7c64; --xl:#1d6b40; --warn:#b42318; --dim:.14;
+  --s1:#2452a6; --s2:#b35a07; --s3:#0c7c64; --s4:#8a3fb8; --s5:#b8323f; --s6:#5b6b10;
+  --f-disp:"Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --panel:#151c24; --field:#0f151c; --ink:#e2e8ee; --mut:#94a3b3; --line:#2a3542; --band:#18212b;
+  --fw:#86a9ff; --bk:#f0a453; --cur:#3dcfa8; --xl:#5fd08f; --warn:#ff8a80; --dim:.16;
+  --s1:#86a9ff; --s2:#f0a453; --s3:#3dcfa8; --s4:#c79bf2; --s5:#ff8a9a; --s6:#c3d45a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --panel:#151c24; --field:#0f151c; --ink:#e2e8ee; --mut:#94a3b3; --line:#2a3542; --band:#18212b;
+  --fw:#86a9ff; --bk:#f0a453; --cur:#3dcfa8; --xl:#5fd08f; --warn:#ff8a80; --dim:.16;
+  --s1:#86a9ff; --s2:#f0a453; --s3:#3dcfa8; --s4:#c79bf2; --s5:#ff8a9a; --s6:#c3d45a; color-scheme:dark}
+
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--ink)}
+body{font:15px/1.45 var(--f-body);padding-inline:16px;padding-block:18px 48px}
+.app{max-width:1640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--f-disp);font-weight:600;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:30px;line-height:1.1}
+h2{font-size:19px}
+.lede{color:var(--mut);margin:4px 0 0;max-width:72ch}
+.eyebrow{font:600 12px/1 var(--f-disp);letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.num,input,select,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px 24px}
+.top>div{flex:1 1 420px;min-width:0}
+.brand{margin:0 0 0 auto;flex:0 0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 16px;display:flex;align-items:center;box-shadow:0 1px 2px rgba(10,20,35,.06)}
+.brand img{display:block;height:68px;width:auto;max-width:100%}
+@media (max-width:600px){.brand{margin:0}.brand img{height:54px}}
+
+.work{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.work{grid-template-columns:minmax(0,1fr)}}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column}
+@media (min-width:1001px){.panel{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px);overflow:auto}}
+.sec{padding:14px 16px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.sec:first-child{border-top:0}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--mut);min-width:0}
+label.f .u{font-family:var(--f-mono);font-size:11px;opacity:.85}
+label.f{justify-content:flex-end}
+.g2,.g3,.med .g4{align-items:end}
+input,select{width:100%;box-sizing:border-box;padding:6px 8px;font-size:14px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;min-height:34px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--fw);outline-offset:1px}
+input[readonly]{opacity:.6}
+input[type=range]{padding:0;background:transparent;border:0;accent-color:var(--cur);min-height:24px}
+.hint{font-size:12px;color:var(--mut);margin:0}
+.hint.rec.out{color:var(--warn)}
+.hint.rec b{font-weight:600}
+button{font:500 14px/1 var(--f-body);cursor:pointer;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px 12px;min-height:34px}
+button:hover{border-color:var(--mut)}
+button.pri{background:var(--fw);color:var(--panel);border-color:var(--fw)}
+button.xl{background:var(--xl);color:var(--panel);border-color:var(--xl);font-weight:600;padding:10px 16px;min-height:40px}
+button.ghost{background:transparent}
+button.x{min-height:28px;padding:4px 8px;font-size:13px}
+button:disabled{opacity:.55;cursor:default}
+
+/* medios fijos (emisor y receptor) */
+.fixed{border:1px dashed var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--field)}
+.fixed .med-h b{font:600 15px var(--f-disp);letter-spacing:.02em}
+.fixed .kv{display:flex;flex-wrap:wrap;gap:4px 16px;font:13px var(--f-mono);color:var(--ink)}
+.fixed .tag{font:600 11px var(--f-disp);letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin-left:auto}
+.med{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
+.med-h{display:flex;align-items:center;gap:8px}
+.med-h b{font:600 15px var(--f-disp);letter-spacing:.02em;flex:0 0 auto;min-width:64px}
+.med-h select{flex:1}
+.med .g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.med .g4 input{padding:6px 5px;font-size:13px}
+.med-tools{display:flex;gap:4px}
+
+.msg{font-size:13px;color:var(--mut);margin:0}
+.msg.err{color:var(--warn);font-weight:600}
+
+.stage{display:flex;flex-direction:column;gap:16px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px}
+.xlmsg{font-size:13px;color:var(--mut)}
+.xlmsg.ok{color:var(--xl);font-weight:600}.xlmsg.err{color:var(--warn);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat .v{font:600 22px/1.2 var(--f-mono);font-variant-numeric:tabular-nums}
+.stat .s{font-size:12.5px;color:var(--mut)}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.sheet-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--mut);align-items:center}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.scroll{overflow-x:auto;overflow-y:hidden;border-radius:6px;-webkit-overflow-scrolling:touch}
+svg{display:block}
+.trace{font-size:13px;margin:0;color:var(--mut);min-height:1.4em;overflow-wrap:anywhere}
+.trace b{color:var(--ink);font-weight:600}
+.trace .mono{font-size:12.5px;color:var(--ink)}
+
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{--c:var(--mut);display:inline-flex;align-items:center;gap:6px;font:500 13px var(--f-body);padding:5px 10px;border-radius:999px;min-height:30px;background:transparent;border:1px solid var(--line);color:var(--mut)}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;border:2px solid var(--c)}
+.chip[aria-pressed="true"]{color:var(--ink);border-color:var(--c)}
+.chip[aria-pressed="true"]::before{background:var(--c)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;min-height:30px;padding:5px 10px;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.tctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tctl input[type=range]{flex:1 1 180px}
+.tctl output{font:600 14px var(--f-mono);min-width:92px;text-align:right}
+
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font:600 12px var(--f-disp);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+th:first-child,td:first-child{text-align:left}
+#tcoef th{text-transform:none;letter-spacing:.02em;font-size:13.5px}
+td{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font:600 17px var(--f-disp)}
+.tbl{max-height:360px;overflow:auto}
+
+/* SVG */
+.band{fill:var(--band)}
+.gl{stroke:var(--line);stroke-dasharray:2 4}
+.ax{fill:var(--mut);font:11px var(--f-mono)}
+.axl{fill:var(--mut);font:600 12px var(--f-disp);letter-spacing:.06em}
+.disc{stroke:var(--ink);stroke-width:2}
+.hd{fill:var(--ink);font:12px var(--f-mono)}
+.hdt{fill:var(--ink);font:600 15px var(--f-disp);letter-spacing:.02em}
+.nd{fill:var(--mut);font:600 12px var(--f-disp);letter-spacing:.06em}
+.cf{fill:var(--ink);font:11.5px var(--f-mono)}
+.v0{fill:var(--fw);font:600 13px var(--f-mono)}
+.fwc{--c:var(--fw)}.bkc{--c:var(--bk)}
+.w{stroke:var(--c);stroke-width:1.5;fill:none;cursor:pointer}
+.w.tr{stroke-dasharray:6 4}
+.hit{stroke:transparent;stroke-width:10;fill:none;cursor:pointer}
+.ar{fill:var(--c)}
+.lb{fill:var(--c);font:600 10.5px var(--f-mono);paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round}
+.tk{stroke:var(--ink)}
+.tm{fill:var(--mut);font:10.5px var(--f-mono);paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+.rv{fill:var(--cur);font:600 11px var(--f-mono)}
+.rva{stroke:var(--cur);stroke-width:1.5}.rvh{fill:var(--cur)}
+.cur{stroke:var(--cur);stroke-width:1.5;stroke-dasharray:5 3}
+.curt{fill:var(--cur);font:600 11px var(--f-mono);paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+svg.focus .w,svg.focus .lb,svg.focus .ar{opacity:var(--dim)}
+svg.focus .w.on,svg.focus .ar.on,svg.focus .lb.on{opacity:1}
+svg.focus .w.on{stroke-width:3}
+.pl{fill:none;stroke-width:2}
+.plc{stroke:var(--cur);stroke-width:1.2;stroke-dasharray:4 3}
+.z0{stroke:var(--mut)}
+/* tarjeta de la onda */
+.pop{position:fixed;z-index:20;width:min(330px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(10,20,35,.22);padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:10px}
+.pop-h{display:flex;align-items:center;gap:8px}
+.pop-h .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:0 0 auto}
+.pop-h b{font:600 17px var(--f-disp);letter-spacing:.02em}
+.pop-h .dir{font:600 12px var(--f-disp);letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.pop-h button{margin-left:auto;min-height:26px;padding:2px 8px;background:transparent}
+.pop-sec{display:flex;flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid var(--line)}
+.pop-sec:first-of-type{border-top:0;padding-top:0}
+.pop-t{font:600 11.5px var(--f-disp);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.pop dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0}
+.pop dt{color:var(--mut)}
+.pop dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right}
+.pop .big{font:600 15px var(--f-mono);font-variant-numeric:tabular-nums}
+.pop .chain{font:12px/1.5 var(--f-mono);overflow-wrap:anywhere}
+.pop .note{color:var(--mut);font-size:12px}
+/* ---------- portada ---------- */
+.intro{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px 32px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px 30px}
+.hero h1{font-size:clamp(34px,5vw,52px);line-height:1.02;letter-spacing:0}
+.hero .sub{font-size:17px;line-height:1.5;color:var(--mut);margin:10px 0 0;max-width:60ch}
+.hero .brand{margin:0}
+.hero .brand img{height:84px}
+.cta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:20px}
+button.go{background:var(--fw);color:var(--panel);border-color:var(--fw);font:600 17px var(--f-body);padding:13px 26px;min-height:48px;border-radius:8px}
+button.go:hover{filter:brightness(1.08)}
+.cta .hint{font-size:13px}
+@media (max-width:760px){.hero{grid-template-columns:minmax(0,1fr);padding:22px 18px}.hero .brand{justify-self:start}.hero .brand img{height:60px}}
+.igrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:860px){.igrid{grid-template-columns:minmax(0,1fr)}}
+.icard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.icard h2{font-size:22px}
+.icard p{margin:0;line-height:1.55;max-width:68ch}
+.icard ul,.icard ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.5}
+.icard ol li::marker{font:600 15px var(--f-disp);color:var(--fw)}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.fig{width:100%;height:auto;display:block}
+.fig .lane{fill:var(--band)}
+.fig .bd{stroke:var(--ink);stroke-width:2}
+.fig .wf{stroke:var(--fw);stroke-width:2.2;fill:none}
+.fig .wb{stroke:var(--bk);stroke-width:2.2;fill:none}
+.fig .wr{stroke:var(--cur);stroke-width:2;fill:none}
+.fig .dash{stroke-dasharray:6 4}
+.fig .t{fill:var(--ink);font:600 13px var(--f-disp);letter-spacing:.04em}
+.fig .s{fill:var(--mut);font:11.5px var(--f-mono)}
+.fig .c{fill:var(--ink);font:12px var(--f-mono);paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+.fig .af{fill:var(--fw)}.fig .ab{fill:var(--bk)}.fig .ar2{fill:var(--cur)}.fig .ax2{stroke:var(--mut);stroke-width:1.3}.fig .axh{fill:var(--mut)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--mut)}
+.leg i{display:inline-block;width:22px;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+.eqs{display:grid;grid-template-columns:auto 1fr;gap:12px 18px;align-items:center}
+.eq{font:15px var(--f-mono);display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.eq sub{font-size:.72em;letter-spacing:-.06em;margin-left:-.25em}
+.frac{display:inline-flex;flex-direction:column;align-items:center;line-height:1.25}
+.frac>span:first-child{border-bottom:1.5px solid var(--ink);padding:0 4px 2px}
+.frac>span:last-child{padding:2px 4px 0}
+.eqd{color:var(--mut);font-size:13.5px}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.case{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--field);display:flex;flex-direction:column;gap:2px;min-width:0}
+.case b{font:600 14px var(--f-disp);letter-spacing:.03em}
+.case span{font:12.5px var(--f-mono);color:var(--ink)}
+@media (max-width:520px){.cases{grid-template-columns:minmax(0,1fr)}.eqs{grid-template-columns:minmax(0,1fr)}}
+.endcta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px 20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px}
+.endcta p{margin:0;color:var(--mut);max-width:62ch}
+button.back{background:transparent;border:0;padding:0;min-height:28px;color:var(--fw);font:600 14px var(--f-body);margin-bottom:6px}
+button.back:hover{text-decoration:underline}
+/* ---------- transición al simulador ---------- */
+.warp{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:hidden;cursor:pointer}
+.warp svg{position:absolute;inset:0;width:100%;height:100%}
+.warp .wb2{stroke:var(--ink);stroke-width:1.6;opacity:.55;transform-box:fill-box;transform-origin:50% 0}
+.warp .wl{fill:none;stroke-linecap:butt}
+.warp .wl.f{stroke:var(--fw);filter:drop-shadow(0 0 5px var(--fw))}
+.warp .wl.b{stroke:var(--bk);filter:drop-shadow(0 0 5px var(--bk))}
+.warp .cap{position:absolute;left:clamp(16px,5vw,64px);bottom:clamp(20px,6vh,56px);display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.warp .cap .eyebrow{color:var(--mut)}
+.warp .cap b{font:600 clamp(30px,5vw,54px)/1 var(--f-disp);color:var(--ink)}
+.warp .cap .clk{font:600 clamp(16px,2vw,20px) var(--f-mono);color:var(--cur);font-variant-numeric:tabular-nums}
+.warp .skip{position:absolute;right:clamp(16px,4vw,40px);bottom:clamp(20px,6vh,56px);font-size:12.5px;color:var(--mut);pointer-events:none}
+.sweep{stroke:var(--cur);stroke-width:2;filter:drop-shadow(0 0 4px var(--cur))}
+.sweept{fill:var(--cur);font:600 12px var(--f-mono);paint-order:stroke;stroke:var(--panel);stroke-width:3px}
+
+</style>
+<style>html{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}@media (prefers-color-scheme:dark){html{color-scheme:dark}}</style>
+</head>
+<body>
+
+
+<div class="intro" id="intro">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Ondas viajeras en sistemas de potencia</div>
+      <h1>Diagrama de Lattice</h1>
+      <p class="sub">El método de Bewley para seguir, en el espacio y en el tiempo, cada reflexión y transmisión de una onda de tensión que recorre líneas, cables de guarda, torres y cables aislados.</p>
+      <div class="cta"><button type="button" class="go" id="start">Empezar →</button><span class="hint">Simulador interactivo con exportación a Excel</span></div>
+    </div>
+    <figure class="brand"><img id="logo2" alt="Universidad Pontificia Bolivariana" width="343" height="125"></figure>
+  </section>
+
+  <div class="igrid">
+    <div class="stack">
+      <section class="icard">
+        <h2>¿Qué es?</h2>
+        <p>Es un diagrama espacio–tiempo propuesto por L. V. Bewley en 1931. En el eje horizontal se ubican los medios (líneas, cables, torres) uno a continuación del otro, y en el eje vertical corre el tiempo hacia abajo.</p>
+        <p>Una onda que viaja se dibuja como una línea inclinada que tarda τ = L/v en cruzar cada medio. Cada vez que llega a un cambio de impedancia se divide en una onda reflejada y una transmitida, y el diagrama lleva la cuenta de todas ellas.</p>
+      </section>
+      <section class="icard">
+        <h2>¿Para qué sirve?</h2>
+        <ul>
+          <li>Calcular sobretensiones por rayo en cables de guarda, torres y líneas.</li>
+          <li>Estudiar transiciones línea aérea–cable y la duplicación de tensión en extremos abiertos.</li>
+          <li>Analizar la energización de líneas y cables.</li>
+          <li>Ubicar descargadores y estimar su distancia de protección.</li>
+          <li>Verificar resultados de ATP o PSCAD con modelos de parámetros distribuidos.</li>
+        </ul>
+      </section>
+    </div>
+    <section class="icard">
+      <h2>Cómo se lee</h2>
+      <svg class="fig" viewBox="0 0 480 340" role="img" aria-label="Ejemplo de diagrama de lattice con dos medios">
+  <defs>
+    <marker id="mf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="af"/></marker>
+    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ab"/></marker>
+    <marker id="mr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ar2"/></marker>
+    <marker id="mx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="axh"/></marker>
+  </defs>
+  <rect class="lane" x="80" y="56" width="200" height="254"/>
+  <text class="t" x="44" y="22" text-anchor="middle">Emisor</text><text class="s" x="44" y="38" text-anchor="middle">Z = 0</text>
+  <text class="t" x="180" y="22" text-anchor="middle">Medio 2 · Z₂</text><text class="s" x="180" y="38" text-anchor="middle">τ₂ = L₂/v₂</text>
+  <text class="t" x="345" y="22" text-anchor="middle">Medio 3 · Z₃</text><text class="s" x="345" y="38" text-anchor="middle">τ₃</text>
+  <text class="t" x="448" y="22" text-anchor="middle">Receptor</text><text class="s" x="448" y="38" text-anchor="middle">Z = ∞</text>
+  <line class="bd" x1="80" y1="56" x2="80" y2="310"/><line class="bd" x1="280" y1="56" x2="280" y2="310"/><line class="bd" x1="410" y1="56" x2="410" y2="310"/>
+  <line class="ax2" x1="22" y1="70" x2="22" y2="300" marker-end="url(#mx)"/><text class="s" x="22" y="322" text-anchor="middle">t</text>
+  <line class="wf" x1="80" y1="56" x2="278" y2="164" marker-end="url(#mf)"/>
+  <text class="c" x="150" y="88" text-anchor="middle">V₀</text>
+  <line class="wb" x1="280" y1="165" x2="82" y2="273" marker-end="url(#mb)"/>
+  <text class="c" x="205" y="236" text-anchor="middle">α₂₃·V₀</text>
+  <line class="wf" x1="280" y1="165" x2="408" y2="208" marker-end="url(#mf)"/>
+  <text class="c" x="340" y="174" text-anchor="middle">β₂₃·V₀</text>
+  <line class="wb" x1="410" y1="209" x2="282" y2="252" marker-end="url(#mb)"/>
+  <line class="wr" x1="410" y1="209" x2="462" y2="209" marker-end="url(#mr)"/>
+  <text class="c" x="440" y="232" text-anchor="middle">2·a</text>
+  <line class="wf dash" x1="280" y1="253" x2="410" y2="296"/>
+  <line class="wb dash" x1="280" y1="253" x2="170" y2="310"/>
+  <line class="wf dash" x1="80" y1="274" x2="148" y2="310"/>
+  <circle cx="280" cy="165" r="4" class="af"/><text class="c" x="290" y="148">unión 2–3</text>
+</svg>
+      <div class="leg"><span><i style="border-color:var(--fw)"></i>hacia el receptor</span><span><i style="border-color:var(--bk)"></i>hacia el emisor</span><span><i style="border-color:var(--cur)"></i>tensión que llega al receptor</span></div>
+      <p>La tensión en un punto y un instante es la <b>suma de todas las ondas</b> que han pasado por ese punto hasta ese instante. En el receptor abierto la onda se refleja completa y la tensión se duplica.</p>
+    </section>
+  </div>
+
+  <div class="igrid">
+    <section class="icard">
+      <h2>Coeficientes en una unión</h2>
+      <p class="eqd">Onda que viaja del medio a (Z<sub>a</sub>) al medio b (Z<sub>b</sub>):</p>
+      <div class="eqs">
+        <span class="eq">α<sub>ab</sub> = <span class="frac"><span>Z<sub>b</sub> − Z<sub>a</sub></span><span>Z<sub>a</sub> + Z<sub>b</sub></span></span></span><span class="eqd">Reflexión: lo que regresa por el medio a.</span>
+        <span class="eq">β<sub>ab</sub> = <span class="frac"><span>2·Z<sub>b</sub></span><span>Z<sub>a</sub> + Z<sub>b</sub></span></span> = 1 + α<sub>ab</sub></span><span class="eqd">Transmisión: lo que pasa al medio b.</span>
+        <span class="eq">τ = L / v</span><span class="eqd">Tiempo que tarda la onda en cruzar el medio.</span>
+        <span class="eq">a<sub>llega</sub> = k · a<sub>sale</sub></span><span class="eqd">Atenuación por recorrido (k ≤ 1).</span>
+      </div>
+      <div class="cases">
+        <div class="case"><b>Extremo abierto</b><span>Z<sub>b</sub> = ∞</span><span>α = 1 · β = 2</span></div>
+        <div class="case"><b>Cortocircuito</b><span>Z<sub>b</sub> = 0</span><span>α = −1 · β = 0</span></div>
+        <div class="case"><b>Acoplado</b><span>Z<sub>b</sub> = Z<sub>a</sub></span><span>α = 0 · β = 1</span></div>
+      </div>
+    </section>
+    <section class="icard">
+      <h2>Cómo usar el simulador</h2>
+      <ol>
+        <li>Define la tensión V₀ y el tiempo máximo de simulación.</li>
+        <li>Agrega los medios entre el emisor (Z = 0) y el receptor (Z = ∞). Al elegir el tipo se cargan Z y L típicos, y puedes cambiarlos.</li>
+        <li>Lee el diagrama: cada onda muestra con cuánto sale y con cuánto llega. Toca una línea para ver su detalle y los coeficientes que la formaron.</li>
+        <li>Revisa la tensión instantánea y acumulada en el receptor y exporta todos los datos a Excel.</li>
+      </ol>
+    </section>
+  </div>
+
+  <div class="endcta"><p>El simulador abre con una línea aérea de 400 Ω y 3 km seguida de un cable de 40 Ω y 150 m. Cambia los medios para estudiar tu propio caso.</p><button type="button" class="go" id="start2">Empezar →</button></div>
+</div>
+
+<div class="app" id="sim" hidden>
+  <header class="top">
+    <div>
+      <button type="button" class="back" id="back">← Qué es el diagrama de lattice</button>
+      <div class="eyebrow">Ondas viajeras de tensión · emisor Z = 0 Ω · receptor Z = ∞</div>
+      <h1>Lattice de Bewley</h1>
+      <p class="lede">El medio 1 (emisor) y el último medio (receptor) son fijos; entre ellos agrega los medios que necesites. Cada onda muestra el valor con que sale y con el que llega. Toca una onda para ver cómo se formó su amplitud y exporta los resultados a Excel.</p>
+    </div>
+    <figure class="brand"><img src="data:image/png;base64,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" width="343" height="125" alt="Universidad Pontificia Bolivariana"></figure>
+  </header>
+
+  <div class="work">
+    <aside class="panel" id="ctl" aria-label="Parámetros">
+      <section class="sec" style="border-top:0">
+        <div class="sec-h"><h2>Simulación</h2></div>
+        <div class="g3">
+          <label class="f">V₀<input id="v0" type="number" step="any" value="1"></label>
+          <label class="f">Unidad<select id="unit"><option>p.u.</option><option>kV</option><option>V</option></select></label>
+          <label class="f"><span class="lt">t máx <span class="u">µs</span></span><input id="tmax" type="number" min="0.1" max="5000" step="any" value="30"></label>
+        </div>
+      </section>
+
+      <section class="sec">
+        <div class="sec-h"><h2>Medios</h2><span class="eyebrow">del emisor al receptor</span></div>
+        <div class="fixed" aria-label="Medio 1, emisor">
+          <div class="med-h"><b>Medio 1</b><span class="tag">emisor · fijo</span></div>
+          <div class="kv"><span>Z = 0 Ω</span><span>L = 0 m</span><span>escalón V₀</span></div>
+        </div>
+        <div id="rows" style="display:flex;flex-direction:column;gap:8px"></div>
+        <button type="button" id="add">＋ Agregar medio</button>
+        <div class="fixed" aria-label="Último medio, receptor">
+          <div class="med-h"><b id="recn">Medio 4</b><span class="tag">receptor · fijo</span></div>
+          <div class="kv"><span>Z = ∞</span><span>L = 0 m</span><span>extremo abierto</span></div>
+        </div>
+        <p class="hint">k es la atenuación por recorrido completo del medio (0.90 – 1.00; 1 = sin pérdidas).</p>
+      </section>
+
+      <section class="sec">
+        <div class="sec-h"><h2>Diagrama</h2></div>
+        <div class="g2">
+          <label class="f">Etiquetas<select id="lab">
+            <option value="ambos">salida → llegada</option>
+            <option value="llegada">solo llegada</option>
+            <option value="ninguna">sin etiquetas</option>
+          </select></label>
+          <label class="f">Magnitud<select id="mag">
+            <option value="V">Tensión</option>
+            <option value="I">Corriente</option>
+          </select></label>
+          <label class="f"><span class="lt">Ocultar etiquetas menores que <span class="u">p.u. de V₀</span></span><input id="eti" type="number" min="0" step="any" value="0"></label>
+          <label class="f">Escala horizontal<select id="esc">
+            <option value="uniforme">Ancho uniforme</option>
+            <option value="tau">Proporcional a τ</option>
+          </select></label>
+          <label class="f"><span class="lt">Ancho mínimo por medio <span class="u" id="cwo">240 px</span></span><input id="cw" type="range" min="140" max="700" step="10" value="240"></label>
+          <label class="f"><span class="lt">Alto del diagrama <span class="u" id="alto">820 px</span></span><input id="alt" type="range" min="400" max="3000" step="20" value="820"></label>
+        </div>
+      </section>
+    </aside>
+
+    <main class="stage">
+      <div class="bar">
+        <p class="msg" id="msg" role="status"></p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span class="xlmsg" id="xlmsg" role="status"></span>
+          <button type="button" class="xl" id="xlsx">⤓ Exportar a Excel</button>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+
+      <section class="sheet">
+        <div class="sheet-h">
+          <h2 id="lt">Diagrama de lattice</h2>
+          <div class="legend">
+            <span><i style="border-color:var(--fw)"></i>hacia el receptor</span>
+            <span><i style="border-color:var(--bk)"></i>hacia el emisor</span>
+            <span><i style="border-color:var(--mut);border-top-style:dashed"></i>continúa después de t máx</span>
+            <span><i style="border-color:var(--cur)"></i>llega al receptor</span>
+          </div>
+        </div>
+        <div class="scroll" id="latwrap"><svg id="lat" role="img" aria-label="Diagrama de lattice"></svg></div>
+        <p class="trace" id="trace"></p>
+        <div class="pop" id="pop" role="dialog" aria-label="Detalle de la onda" hidden></div>
+      </section>
+
+      <div class="charts">
+        <section class="sheet">
+          <h2>Tensión instantánea en el receptor</h2>
+          <svg id="cR1" role="img" aria-label="Escalones de tensión que llegan al receptor"></svg>
+        </section>
+        <section class="sheet">
+          <h2>Tensión acumulada en el receptor (superposición)</h2>
+          <svg id="cR2" role="img" aria-label="Tensión acumulada en el receptor por superposición"></svg>
+        </section>
+      </div>
+
+      <section class="sheet">
+        <div class="sheet-h"><h2>Coeficientes en cada unión</h2><span class="hint">α reflexión, β transmisión (tensión). En corriente: αᵢ = −α, βᵢ = β·Zₐ/Z_b</span></div>
+        <div class="scroll"><table id="tcoef"></table></div>
+      </section>
+
+      <section class="sheet">
+        <details>
+          <summary>Escalones de tensión y corriente por unión</summary>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+            <label class="f" style="max-width:260px">Unión<select id="evn"></select></label>
+            <div class="tbl"><table id="tev"></table></div>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const C=300; // m/µs
+// [nombre, velocidad, recomendado: Z mín, Z máx, Z por defecto, L por defecto, significado de L]
+const TIPOS={
+  aerea:['Línea aérea',C,{Zmin:300,Zmax:500,Z:400,L:3000,Lt:'longitud del tramo'}],
+  guarda:['Cable de guarda',.99*C,{Zmin:550,Zmax:650,Z:600,L:300,Lt:'vano entre torres'}],
+  torre:['Torre',.825*C,{Zmin:100,Zmax:200,Z:150,L:40,Lt:'altura de la torre'}],
+  cable:['Cable subterráneo/aislado',.5*C,{Zmin:20,Zmax:60,Z:40,L:150,Lt:'longitud del cable'}],
+  custom:['Personalizado',null,null]
+};
+// límites internos de la simulación (antes eran campos editables)
+const EPS=1e-3, MAXW=10000;
+const UI={'p.u.':'p.u./Ω','kV':'kA','V':'A'};
+
+// ENGINE START
+// Medios internos m = 0..M-1 (medios 2..M+1 en la numeración del diagrama).
+// Uniones j = 0..M: j = 0 emisor (Z = 0), j = M receptor (Z = ∞).
+function coef(Za,Zb){
+  if(Zb===Infinity) return {G:1,T:2,GI:-1,TI:0};
+  const s=Za+Zb; return {G:(Zb-Za)/s,T:2*Zb/s,GI:(Za-Zb)/s,TI:2*Za/s};
+}
+class Heap{
+  constructor(){this.a=[]}
+  get size(){return this.a.length}
+  push(x){const a=this.a;a.push(x);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p].t0<=x.t0)break;a[i]=a[p];i=p}a[i]=x}
+  pop(){const a=this.a,top=a[0],last=a.pop();if(a.length){let i=0;const n=a.length;for(;;){const l=2*i+1;if(l>=n)break;const c=(l+1<n&&a[l+1].t0<a[l].t0)?l+1:l;if(a[c].t0>=last.t0)break;a[i]=a[c];i=c}a[i]=last}return top}
+}
+function simulate(c){
+  const med=c.med,M=med.length,X=[0],Zs=0,ZR=Infinity;
+  med.forEach(m=>{m.tau=m.L/m.v;X.push(X[X.length-1]+m.L)});
+  const Zl=j=>j===0?Zs:med[j-1].Z, Zr=j=>j===M?ZR:med[j].Z;
+  const waves=[],h=new Heap(),tiny=Math.max(c.eps*Math.abs(c.V0),1e-12*Math.abs(c.V0));
+  h.push({m:0,d:1,t0:0,a0:c.V0,p:-1});
+  let lim=null;
+  while(h.size){
+    const w=h.pop();
+    if(w.t0>=c.tmax) break;
+    if(!(Math.abs(w.a0)>=tiny)||w.a0===0) continue;
+    if(waves.length>=c.maxW){lim=w.t0;break}
+    const me=med[w.m],t1=w.t0+me.tau,a1=w.a0*me.k;
+    const W={id:waves.length,m:w.m,d:w.d,t0:w.t0,t1,a0:w.a0,a1,tr:t1>c.tmax,p:w.p};
+    waves.push(W); if(W.tr) continue;
+    const node=w.d===1?w.m+1:w.m, Zn=w.d===1?Zr(node):Zl(node), k=coef(me.Z,Zn);
+    h.push({m:w.m,d:-w.d,t0:t1,a0:a1*k.G,p:W.id});
+    if(w.d===1&&node<M) h.push({m:node,d:1,t0:t1,a0:a1*k.T,p:W.id});
+    if(w.d===-1&&node>0) h.push({m:node-1,d:-1,t0:t1,a0:a1*k.T,p:W.id});
+  }
+  const tEnd=lim!==null?lim:c.tmax;
+  if(lim!==null)for(const w of waves)w.tr=w.t1>tEnd;
+  // escalones en cada unión, vistos desde el medio izquierdo (la unión del emisor usa el medio 2)
+  const ref=j=>j===0?0:j-1, raw=Array.from({length:M+1},()=>[]);
+  for(const w of waves){
+    const Z=med[w.m].Z, js=w.d===1?w.m:w.m+1, je=w.d===1?w.m+1:w.m;
+    if(ref(js)===w.m) raw[js].push([w.t0,w.a0,w.d*w.a0/Z]);
+    if(!w.tr&&ref(je)===w.m) raw[je].push([w.t1,w.a1,w.d*w.a1/Z]);
+  }
+  const ev=raw.map(L=>{
+    L.sort((a,b)=>a[0]-b[0]);const out=[];
+    for(const e of L){const o=out[out.length-1];if(o&&Math.abs(o[0]-e[0])<1e-9){o[1]+=e[1];o[2]+=e[2]}else out.push([e[0],e[1],e[2]])}
+    return out.filter(e=>e[0]<tEnd-1e-9&&(Math.abs(e[1])>1e-12*Math.abs(c.V0)||Math.abs(e[2])>1e-15*Math.abs(c.V0)));
+  });
+  // llegadas al receptor (onda transmitida β·a, como en las gráficas del receptor)
+  const byM=Array.from({length:M},()=>[]);waves.forEach(w=>byM[w.m].push(w));
+  return {waves,ev,byM,X,lim,tEnd,M,Zl,Zr};
+}
+// serie escalonada en una unión: q = 1 tensión, 2 corriente
+function nodeSeries(S,j,q,tmax){
+  const pts=[[0,0]];let cur=0;
+  for(const e of S.ev[j]){pts.push([e[0],cur]);cur+=e[q];pts.push([e[0],cur])}
+  pts.push([tmax,cur]);return pts;
+}
+function pointVI(S,c,m,x,t){
+  const me=c.med[m],xa=S.X[m],xb=S.X[m+1];let V=0,I=0;
+  for(const w of S.byM[m]){
+    const fr=w.d===1?(x-xa)/me.L:(xb-x)/me.L,tp=w.t0+fr*me.tau;
+    if(tp>t)continue;
+    const amp=w.a0*Math.pow(me.k,fr);V+=amp;I+=w.d*amp/me.Z;
+  }
+  return [V,I];
+}
+function profileSeries(S,c,t){
+  const out=[];
+  for(let m=0;m<S.M;m++){
+    const me=c.med[m],xa=S.X[m],xb=S.X[m+1],xs=new Set();
+    const n=Math.max(40,Math.round(320*me.L/S.X[S.M]));
+    for(let i=0;i<=n;i++)xs.add(xa+(xb-xa)*i/n);
+    const e=(xb-xa)*1e-7;
+    for(const w of S.byM[m]){const fr=(t-w.t0)/me.tau;if(fr>0&&fr<1){const xf=w.d===1?xa+fr*me.L:xb-fr*me.L;xs.add(Math.max(xa,xf-e));xs.add(Math.min(xb,xf+e))}}
+    [...xs].sort((a,b)=>a-b).forEach(x=>{const [V,I]=pointVI(S,c,m,x,t);out.push([x,V,I])});
+  }
+  return out;
+}
+// ENGINE END
+
+/* ---------- utilidades ---------- */
+const fmt=v=>{
+  if(v===Infinity)return'∞';if(v===-Infinity)return'−∞';if(!isFinite(v))return'—';
+  if(v===0||Math.abs(v)<1e-12)return'0';
+  const a=Math.abs(v);let s;
+  if(a>=1000)s=v.toFixed(0);else if(a>=100)s=v.toFixed(1);else if(a>=.1)s=v.toFixed(3);else s=v.toPrecision(3);
+  if(!s.includes('e'))s=s.replace(/(\.\d*?)0+$/,'$1').replace(/\.$/,'');
+  return s.replace('-','−');
+};
+const nice=r=>{if(!(r>0))return 1;const p=10**Math.floor(Math.log10(r)),f=r/p;return(f<1.5?1:f<3.5?2:f<7.5?5:10)*p};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rows=()=>[...document.querySelectorAll('#rows .med')];
+const SER=['--s1','--s2','--s3','--s4','--s5','--s6'];
+const SUBD='₀₁₂₃₄₅₆₇₈₉';
+const subU=n=>String(n).split('').map(d=>SUBD[+d]).join('');
+// numeración del diagrama: medio interno m → m+2; total de medios N = M+2
+const nMed=m=>m+2;
+const idx=(g,a,b,N)=>`${g}${subU(a)}${N>=10?'‚':''}${subU(b)}`;         // texto plano
+const idxS=(g,a,b,N,v)=>`${g}<tspan dy="4" font-size="9">${a}${N>=10?',':''}${b}</tspan><tspan dy="-4"> = ${fmt(v)}</tspan>`; // SVG
+function nodeName(j,M){return j===0?'Emisor (1–2)':j===M?`Receptor (${j+1}–${j+2})`:`Unión ${j+1}–${j+2}`}
+function nodeShort(j,M){return j===0?'1–2':`${j+1}–${j+2}`}
+
+/* ---------- medios ---------- */
+let uid=0;
+function addRow(t='aerea',Z=null,L=null,k=.99,v=null){
+  const R=TIPOS[t][2];Z=Z??(R?R.Z:400);L=L??(R?R.L:1000);
+  const d=document.createElement('div');d.className='med';const n=uid++;
+  d.innerHTML=`<div class="med-h"><b></b>
+    <select class="t" id="mt${n}" aria-label="Tipo de medio">${Object.entries(TIPOS).map(([key,x])=>`<option value="${key}"${key===t?' selected':''}>${x[0]}</option>`).join('')}</select>
+    <div class="med-tools"><button type="button" class="x up ghost" aria-label="Subir medio" title="Subir">↑</button><button type="button" class="x dn ghost" aria-label="Bajar medio" title="Bajar">↓</button><button type="button" class="x rm ghost" aria-label="Quitar medio" title="Quitar">✕</button></div></div>
+    <div class="g4">
+      <label class="f"><span class="lt">Z <span class="u">Ω</span></span><input class="z" id="mz${n}" type="number" min="0.001" step="any" value="${Z}"></label>
+      <label class="f"><span class="lt">L <span class="u">m</span></span><input class="l" id="ml${n}" type="number" min="0.001" step="any" value="${L}"></label>
+      <label class="f"><span class="lt">v <span class="u">m/µs</span></span><input class="v" id="mv${n}" type="number" min="0.001" max="300" step="any" value="${v??C}"></label>
+      <label class="f"><span class="lt">k <span class="u">0.90–1</span></span><input class="k" id="mk${n}" type="number" min="0.9" max="1" step="0.005" value="${k}"></label>
+    </div>
+    <p class="hint rec"></p>`;
+  const sel=d.querySelector('.t'),vi=d.querySelector('.v'),zi=d.querySelector('.z'),li=d.querySelector('.l'),hint=d.querySelector('.rec');
+  const sync=()=>{const s=TIPOS[sel.value][1];if(s!==null){vi.value=+s.toFixed(3);vi.readOnly=true}else vi.readOnly=false};
+  const check=()=>{
+    const R=TIPOS[sel.value][2];
+    if(!R){hint.className='hint rec';hint.textContent='Personalizado: ingresa Z, L y v.';return}
+    const z=+zi.value,out=z>0&&(z<R.Zmin||z>R.Zmax);
+    hint.className='hint rec'+(out?' out':'');
+    hint.innerHTML=`Típico: Z = ${R.Zmin}–${R.Zmax} Ω · L = ${R.Lt}${out?' · <b>Z fuera del rango típico</b>':''}`;
+  };
+  // al cambiar el tipo se cargan los valores recomendados
+  sel.addEventListener('change',()=>{const R=TIPOS[sel.value][2];if(R){zi.value=R.Z;li.value=R.L}sync();check();go()});
+  zi.addEventListener('input',check);
+  d.querySelector('.rm').onclick=()=>{if(rows().length>1){d.remove();renum();go()}};
+  d.querySelector('.up').onclick=()=>{const p=d.previousElementSibling;if(p){p.before(d);renum();go()}};
+  d.querySelector('.dn').onclick=()=>{const q=d.nextElementSibling;if(q){q.after(d);renum();go()}};
+  $('rows').append(d);
+  if(t==='custom')vi.readOnly=false;else sync();
+  check();renum();
+}
+function renum(){const r=rows();r.forEach((x,i)=>x.querySelector('b').textContent='Medio '+(i+2));$('recn').textContent='Medio '+(r.length+2)}
+
+/* ---------- lectura ---------- */
+function readCfg(){
+  const err=[],n=id=>+$(id).value;
+  const V0=n('v0'),tmax=n('tmax'),eps=EPS,maxW=MAXW;
+  const med=rows().map(r=>{const tp=r.querySelector('.t').value;return{tipo:tp,nombre:TIPOS[tp][0],Z:+r.querySelector('.z').value,L:+r.querySelector('.l').value,v:+r.querySelector('.v').value,k:+r.querySelector('.k').value}});
+  if(!V0)err.push('V₀ debe ser distinto de 0');
+  if(!(tmax>0&&tmax<=5000))err.push('t máx debe estar entre 0 y 5000 µs');
+  med.forEach((m,i)=>{if(!(m.Z>0&&m.L>0&&m.v>0&&m.v<=C))err.push(`medio ${i+2}: Z, L y v deben ser > 0 y v ≤ 300 m/µs`);if(!(m.k>=.9&&m.k<=1))err.push(`medio ${i+2}: k debe estar entre 0.90 y 1.00`)});
+  return {cfg:{V0,tmax,tmaxIn:tmax,eps,maxW,med,unit:$('unit').value},err};
+}
+
+/* ---------- estado ---------- */
+let S=null,CF=null,focusId=null,NSER={};
+let tmr;const go=()=>{clearTimeout(tmr);tmr=setTimeout(render,110)};
+const TRACE0='Toca una onda para resaltar su recorrido y ver el producto de coeficientes que da su amplitud.';
+const ser=(j,q)=>NSER[j+'_'+q]||(NSER[j+'_'+q]=nodeSeries(S,j,q,CF.tmax));
+
+function render(){
+  NSER={};
+  const {cfg,err}=readCfg(),m=$('msg');
+  if(err.length){m.className='msg err';m.textContent='Revisa los datos: '+err.join(' · ')+'.';$('xlsx').disabled=true;return}
+  $('xlsx').disabled=false;
+  CF=cfg;S=simulate(cfg);
+  if(S.lim!==null)cfg.tmax=S.tEnd;
+  m.className='msg';
+  m.textContent=`Ondas generadas: ${S.waves.length}`+(S.lim!==null?` · hay demasiadas ondas: el diagrama se muestra completo hasta t = ${fmt(S.lim)} µs. Reduce t máx para verlo entero.`:'');
+  $('lt').textContent=`Diagrama de lattice · V₀ = ${fmt(cfg.V0)} ${cfg.unit} · t máx = ${fmt(cfg.tmax)} µs`;
+  drawLattice();drawReceiver();drawStats();drawCoef();buildEvSelect();drawEv();
+}
+
+/* ---------- lattice ---------- */
+let LG=null;
+function drawLattice(){
+  const svg=$('lat'),c=CF,M=S.M,N=M+2,H=+$('alt').value,mode=$('lab').value,umb=(+$('eti').value||0)*Math.abs(c.V0),mag=$('mag').value;
+  const avail=$('latwrap').clientWidth||1100,mL=64,srcW=110,mR=160,top=118,bot=78;
+  const base=Math.max(avail-mL-srcW-mR,M*140),cwMin=+$('cw').value;
+  let w;
+  if($('esc').value==='tau'){const tt=c.med.reduce((s,m)=>s+m.tau,0);w=c.med.map(m=>Math.max(110,Math.max(base,M*cwMin)*m.tau/tt))}
+  else{const cw=Math.max(cwMin,base/M);w=c.med.map(()=>cw)}
+  const X=[mL+srcW];w.forEach(x=>X.push(X[X.length-1]+x));
+  const W=Math.ceil(X[M]+mR),Ht=top+H+bot,tmax=c.tmax;
+  const Y=t=>top+t/tmax*H,o=[];
+  LG={X,Y,top,H,tmax,W};
+  for(let i=0;i<M;i++)if(i%2===0)o.push(`<rect class="band" x="${X[i]}" y="${top}" width="${w[i]}" height="${H}"/>`);
+  const st=nice(tmax/10);
+  for(let i=0;i*st<=tmax+1e-9;i++){const y=Y(i*st);o.push(`<line class="gl" x1="${mL-6}" x2="${W-8}" y1="${y}" y2="${y}"/><text class="ax" x="${mL-10}" y="${y+4}" text-anchor="end">${fmt(i*st)}</text>`)}
+  o.push(`<text class="axl" transform="translate(14,${top+H/2}) rotate(-90)" text-anchor="middle">t (µs)</text>`);
+  for(let j=0;j<=M;j++)o.push(`<line class="disc" x1="${X[j]}" x2="${X[j]}" y1="${top}" y2="${top+H}"/>`);
+  const head=(xc,lines)=>`<text text-anchor="middle" x="${xc}" y="${top-86}">`+lines.map((s,q)=>`<tspan class="${q?'hd':'hdt'}" x="${xc}" dy="${q?16:0}">${s}</tspan>`).join('')+'</text>';
+  o.push(head(X[0]-srcW/2-4,['Medio 1','(emisor)','Z = 0 Ω','L = 0 m']));
+  c.med.forEach((m,i)=>o.push(head((X[i]+X[i+1])/2,[`Medio ${nMed(i)} · ${esc(m.nombre)}`,`Z = ${fmt(m.Z)} Ω ; L = ${fmt(m.L)} m`,`v = ${fmt(m.v)} m/µs ; τ = ${fmt(m.tau)} µs`,`k = ${fmt(m.k)}`])));
+  o.push(head(X[M]+mR/2+6,[`Medio ${N}`,'(receptor)','Z = ∞','L = 0 m']));
+  o.push(`<text class="v0" x="${X[0]+8}" y="${top-6}">V₀ = ${fmt(c.V0)} ${esc(c.unit)}</text>`);
+  // ondas
+  const lb=[],tk=Array.from({length:M+1},()=>[]);
+  const val=(wv,a)=>mag==='V'?a:wv.d*a/c.med[wv.m].Z;
+  for(const wv of S.waves){
+    const xa=wv.d===1?X[wv.m]:X[wv.m+1];let xz=wv.d===1?X[wv.m+1]:X[wv.m],tz=wv.t1;
+    if(wv.tr){xz=xa+(tmax-wv.t0)/(wv.t1-wv.t0)*(xz-xa);tz=tmax}
+    const y1=Y(wv.t0),y2=Y(tz),dx=xz-xa,dy=y2-y1,len=Math.hypot(dx,dy),cl=wv.d===1?'fwc':'bkc';
+    const ttl=`#${wv.id} · medio ${nMed(wv.m)} ${wv.d===1?'→':'←'} · ${fmt(val(wv,wv.a0))} → ${fmt(val(wv,wv.a1))} · ${fmt(wv.t0)} a ${fmt(wv.t1)} µs`;
+    o.push(`<g data-id="${wv.id}"><title>${ttl}</title><line class="w ${cl}${wv.tr?' tr':''}" data-w="${wv.id}" x1="${xa}" y1="${y1}" x2="${xz}" y2="${y2}"/><line class="hit" x1="${xa}" y1="${y1}" x2="${xz}" y2="${y2}"/></g>`);
+    if(len>34){const ux=dx/len,uy=dy/len,px=xa+dx*.56,py=y1+dy*.56;
+      o.push(`<polygon class="ar ${cl}" data-w="${wv.id}" points="${px+ux*6},${py+uy*6} ${px-ux*4-uy*4},${py-uy*4+ux*4} ${px-ux*4+uy*4},${py-uy*4-ux*4}"/>`)}
+    tk[wv.d===1?wv.m:wv.m+1].push(wv.t0);if(!wv.tr)tk[wv.d===1?wv.m+1:wv.m].push(wv.t1);
+    if(mode!=='ninguna'&&Math.abs(wv.a0)>=umb&&len>64){
+      let ang=Math.atan2(dy,dx)*180/Math.PI,inv=false;
+      if(ang>90){ang-=180;inv=true}else if(ang<-90){ang+=180;inv=true}
+      const a0=fmt(val(wv,wv.a0)),a1=fmt(val(wv,wv.a1));
+      const txt=mode==='llegada'?a1:inv?`${a1} ← ${a0}`:`${a0} → ${a1}`;
+      lb.push(`<text class="lb ${cl}" data-w="${wv.id}" transform="translate(${xa+dx*.3},${y1+dy*.3}) rotate(${ang})" text-anchor="middle" dy="-5">${txt}</text>`);
+    }
+  }
+  tk.forEach((arr,j)=>{
+    const u=[...new Set(arr.map(t=>+t.toFixed(6)))].sort((a,b)=>a-b);let last=-1e9;
+    u.forEach(t=>{const y=Y(t);o.push(`<line class="tk" data-t="${t}" x1="${X[j]-4}" x2="${X[j]+4}" y1="${y}" y2="${y}"/>`);
+      if(y-last>=13&&j<M){o.push(`<text class="tm" data-t="${t}" x="${X[j]-7}" y="${y+4}" text-anchor="end">${fmt(t)}</text>`);last=y}});
+  });
+  o.push(...lb);
+  // llegadas al receptor (β·a)
+  let lastR=-1e9;
+  for(const wv of S.waves){if(mag!=='V'||wv.d!==1||wv.m!==M-1||wv.tr)continue;
+    const y=Y(wv.t1),x=X[M],v=2*wv.a1;
+    o.push(`<g class="rvg" data-t="${wv.t1}"><line class="rva" x1="${x}" y1="${y}" x2="${x+52}" y2="${y}"/><polygon class="rvh" points="${x+60},${y} ${x+50},${y-4} ${x+50},${y+4}"/>`);
+    if(y-lastR>=13&&Math.abs(v)>=umb){o.push(`<text class="rv" x="${x+66}" y="${y+4}">${fmt(v)}</text>`);lastR=y}
+    o.push('</g>')}
+  // coeficientes al pie (notación α/β por par de medios)
+  for(let j=0;j<=M;j++){
+    const x=X[j],ls=[],a=j+1,b=j+2;
+    const zl=S.Zl(j),zr=S.Zr(j);
+    if(j>0){const f=coef(zl,zr);ls.push(idxS('α',a,b,N,f.G),idxS('β',a,b,N,f.T))}
+    if(j<M){const r=coef(zr,zl);ls.push(idxS('α',b,a,N,r.G),idxS('β',b,a,N,r.T))}
+    o.push(`<text class="cf" text-anchor="middle" x="${x}" y="${top+H+2}">`+ls.map(s=>`<tspan x="${x}" dy="17">${s}</tspan>`).join('')+'</text>');
+  }
+  svg.setAttribute('viewBox',`0 0 ${W} ${Ht}`);svg.setAttribute('width',W);svg.setAttribute('height',Ht);
+  svg.innerHTML=o.join('');svg.classList.remove('focus');closePop();
+  if(focusId!==null&&focusId<S.waves.length)highlight(focusId);else{focusId=null;$('trace').textContent=TRACE0}
+}
+// cómo se generó una onda a partir de su madre
+function origin(p,q,N){
+  const a=nMed(p.m),b=p.d===1?a+1:a-1;
+  return {g:q.m===p.m?'α':'β',a,b,label:idx(q.m===p.m?'α':'β',a,b,N),f:q.a0/p.a1};
+}
+function chainOf(id){const ch=[];let k=id;while(k>=0){ch.unshift(S.waves[k]);k=S.waves[k].p}return ch}
+function highlight(id,evt){
+  const svg=$('lat'),chain=chainOf(id),ids=new Set(chain.map(w=>w.id)),N=S.M+2;
+  svg.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));
+  svg.querySelectorAll('[data-w]').forEach(e=>{if(ids.has(+e.dataset.w))e.classList.add('on')});
+  svg.classList.add('focus');focusId=id;
+  const c=CF,w=S.waves[id],parts=[`V₀ ${fmt(c.V0)}`];
+  for(let i=1;i<chain.length;i++){
+    const p=chain[i-1],q=chain[i];
+    if(c.med[p.m].k<1)parts.push(`k${subU(nMed(p.m))} ${fmt(c.med[p.m].k)}`);
+    const o=origin(p,q,N);parts.push(`${o.label} ${fmt(o.f)}`);
+  }
+  if(c.med[w.m].k<1)parts.push(`k${subU(nMed(w.m))} ${fmt(c.med[w.m].k)}`);
+  $('trace').innerHTML=`<b>Onda #${w.id}</b> resaltada con su recorrido. <button type="button" class="x ghost" id="clr">Quitar resaltado</button>`;
+  $('clr').onclick=clearHL;
+  if(evt)showPop(w,parts,evt);
+}
+function showPop(w,parts,evt){
+  const c=CF,M=S.M,N=M+2,me=c.med[w.m],u=esc(c.unit),ui=esc(UI[c.unit]),fw=w.d===1;
+  const a=nMed(w.m),b=fw?a+1:a-1;                         // medio actual → medio al que llega
+  const node=fw?w.m+1:w.m, Zn=fw?S.Zr(node):S.Zl(node), k=coef(me.Z,Zn);
+  const bName=b===1?'Medio 1 (emisor)':b===N?`Medio ${N} (receptor)`:`Medio ${b}`;
+  // origen
+  let orig='Lanzada por el emisor (V₀)';
+  if(w.p>=0){const p=S.waves[w.p],o=origin(p,w,N);
+    orig=`${o.g==='α'?'Reflexión':'Transmisión'} de la onda #${p.id} (llegó con ${fmt(p.a1)} ${u})<br>${o.label} = ${fmt(o.f)} → ${fmt(p.a1)} × ${fmt(o.f)} = ${fmt(w.a0)} ${u}`}
+  // llegada
+  let arr;
+  if(w.tr)arr=`<p class="note">Llega después de t máx (${fmt(c.tmax)} µs); no se calcula su reflexión ni su transmisión.</p>`;
+  else{
+    const rv=w.a1*k.G,tv=w.a1*k.T,tiny=c.eps*Math.abs(c.V0),below=v=>Math.abs(v)<tiny&&v!==0?' <span class="note">(despreciable, no se dibuja)</span>':'';
+    const tTxt=b===N?`Pasa al receptor: V = β·a = <b class="mono">${fmt(tv)} ${u}</b>`:b===1?`No pasa al emisor (β = 0)`:`se transmite al medio ${b}: <b class="mono">${fmt(tv)} ${u}</b>${below(tv)}`;
+    arr=`<dl>
+      <dt>${idx('α',a,b,N)} (reflexión)</dt><dd>${fmt(k.G)}</dd>
+      <dt>${idx('β',a,b,N)} (transmisión)</dt><dd>${fmt(k.T)}</dd>
+    </dl>
+    <div>Se refleja en medio ${a}: ${fmt(w.a1)} × ${fmt(k.G)} = <b class="mono">${fmt(rv)} ${u}</b>${below(rv)}</div>
+    <div>${b===N||b===1?'':'Y '}${tTxt}</div>`;
+  }
+  const pop=$('pop');
+  pop.style.setProperty('--c',fw?'var(--fw)':'var(--bk)');
+  pop.innerHTML=`
+    <div class="pop-h"><span class="dot"></span><b>Onda #${w.id}</b><span class="dir">${fw?'→ hacia el receptor':'← hacia el emisor'}</span><button type="button" class="x" id="popx" aria-label="Cerrar">✕</button></div>
+    <div class="pop-sec">
+      <span class="pop-t">Medio ${a} · ${esc(me.nombre)}</span>
+      <dl><dt>Z</dt><dd>${fmt(me.Z)} Ω</dd><dt>L · v</dt><dd>${fmt(me.L)} m · ${fmt(me.v)} m/µs</dd><dt>τ · k</dt><dd>${fmt(me.tau)} µs · ${fmt(me.k)}</dd></dl>
+    </div>
+    <div class="pop-sec">
+      <span class="pop-t">Valores</span>
+      <dl>
+        <dt>Sale</dt><dd><span class="big">${fmt(w.a0)}</span> ${u} · t = ${fmt(w.t0)} µs</dd>
+        <dt>Llega</dt><dd><span class="big">${fmt(w.a1)}</span> ${u} · t = ${fmt(w.t1)} µs</dd>
+        <dt>Atenuación</dt><dd>${fmt(w.a0)} × k ${fmt(me.k)} = ${fmt(w.a1)}</dd>
+        <dt>Corriente</dt><dd>${fmt(w.d*w.a0/me.Z)} → ${fmt(w.d*w.a1/me.Z)} ${ui}</dd>
+      </dl>
+    </div>
+    <div class="pop-sec"><span class="pop-t">Origen</span><div>${orig}</div></div>
+    <div class="pop-sec"><span class="pop-t">Al llegar a ${bName}</span>${arr}</div>
+    <div class="pop-sec"><span class="pop-t">Recorrido completo</span><div class="chain">${parts.join(' × ')} = ${fmt(w.a1)}</div></div>`;
+  pop.hidden=false;
+  $('popx').onclick=closePop;
+  // posición junto al clic, dentro de la ventana
+  const pw=pop.offsetWidth,ph=pop.offsetHeight,vw=innerWidth,vh=innerHeight,g=14;
+  let x=evt.clientX+g,y=evt.clientY+g;
+  if(x+pw>vw-16)x=evt.clientX-pw-g;
+  if(x<16)x=Math.max(16,(vw-pw)/2);
+  if(y+ph>vh-16)y=Math.max(16,vh-ph-16);
+  pop.style.left=x+'px';pop.style.top=y+'px';
+}
+function closePop(){$('pop').hidden=true}
+function clearHL(){const svg=$('lat');svg.classList.remove('focus');svg.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));focusId=null;$('trace').textContent=TRACE0;closePop()}
+$('lat').addEventListener('click',e=>{
+  const g=e.target.closest('[data-id]');
+  if(g){highlight(+g.dataset.id,e);return}
+  if(focusId!==null)clearHL();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('pop').hidden)clearHL()});
+document.addEventListener('click',e=>{if(!$('pop').hidden&&!e.target.closest('#pop')&&!e.target.closest('#lat'))clearHL()});
+addEventListener('scroll',closePop,{passive:true});
+$('latwrap').addEventListener('scroll',closePop,{passive:true});
+
+/* ---------- gráficas ---------- */
+function chart(svg,o){
+  const W=640,H=o.h||300,l=60,r=16,t=14,b=42,pw=W-l-r,ph=H-t-b;
+  let lo=o.ymin,hi=o.ymax;
+  if(lo===undefined){lo=0;hi=0;o.series.forEach(s=>s.pts.forEach(p=>{if(p[1]<lo)lo=p[1];if(p[1]>hi)hi=p[1]}));if(hi===lo)hi=lo+1;const pd=(hi-lo)*.1;hi+=pd;if(lo<0)lo-=pd}
+  const xmin=o.xmin||0,xmax=o.xmax;
+  const X=x=>l+(x-xmin)/(xmax-xmin)*pw,Yf=y=>t+ph-(y-lo)/(hi-lo)*ph,g=[];
+  const sy=nice((hi-lo)/5);
+  for(let i=Math.ceil(lo/sy-1e-9);i*sy<=hi+1e-9;i++){const v=i*sy,y=Yf(v);g.push(`<line class="${Math.abs(v)<1e-12?'z0':'gl'}" x1="${l}" x2="${W-r}" y1="${y}" y2="${y}"/><text class="ax" x="${l-6}" y="${y+4}" text-anchor="end">${fmt(v)}</text>`)}
+  const sx=nice((xmax-xmin)/7);
+  for(let i=Math.ceil(xmin/sx);i*sx<=xmax+1e-9;i++){const x=X(i*sx);g.push(`<line class="gl" x1="${x}" x2="${x}" y1="${t}" y2="${t+ph}"/><text class="ax" x="${x}" y="${H-24}" text-anchor="middle">${fmt(i*sx/(o.xdiv||1))}</text>`)}
+  (o.vlines||[]).forEach(v=>g.push(`<line class="disc" style="stroke-width:1;opacity:.45" x1="${X(v.x)}" x2="${X(v.x)}" y1="${t}" y2="${t+ph}"/><text class="nd" x="${X(v.x)}" y="${t+11}" text-anchor="middle">${v.l}</text>`));
+  g.push(`<text class="axl" x="${W-r}" y="${H-6}" text-anchor="end">${o.xlabel}</text><text class="axl" x="${l}" y="${H-6}">${o.ylabel}</text>`);
+  g.push('<g class="ser">');
+  for(const s of o.series){
+    let d='';s.pts.forEach((p,i)=>{d+=(i?'L':'M')+X(p[0]).toFixed(2)+' '+Yf(Math.max(lo,Math.min(hi,p[1]))).toFixed(2)});
+    g.push(`<path class="pl" style="stroke:var(${s.c})" d="${d}"/>`);
+    (s.dots||[]).forEach(p=>{g.push(`<circle cx="${X(p[0])}" cy="${Yf(p[1])}" r="3.5" style="fill:var(${s.c})"/>`);if(s.dotLabels)g.push(`<text class="ax" x="${X(p[0])}" y="${Yf(p[1])-8}" text-anchor="middle" style="fill:var(${s.c});font-weight:600">${fmt(p[1])}</text>`)});
+    if(s.mark){const mx=X(s.mark[0]),rt=mx>W-120;g.push(`<circle cx="${mx}" cy="${Yf(s.mark[1])}" r="4" style="fill:var(${s.c})"/><text class="ax" x="${mx+(rt?-8:8)}" y="${Yf(s.mark[1])-8}" text-anchor="${rt?'end':'start'}" style="fill:var(${s.c});font-weight:600">${fmt(s.mark[1])}</text>`)}
+  }
+  g.push('</g>');
+  if(o.cursor!==undefined)g.push(`<line class="plc" x1="${X(o.cursor)}" x2="${X(o.cursor)}" y1="${t}" y2="${t+ph}"/>`);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.style.width='100%';svg.style.height='auto';svg.innerHTML=g.join('');
+}
+function recRows(){
+  // llegadas al receptor: β·a (β = 2), agrupadas por instante
+  const m=new Map();
+  for(const w of S.waves)if(w.d===1&&w.m===S.M-1&&!w.tr){const k=Math.round(w.t1*1e9)/1e9;m.set(k,(m.get(k)||0)+2*w.a1)}
+  let ac=0;return [...m].sort((a,b)=>a[0]-b[0]).map(([t,v])=>[t,v,ac+=v]);
+}
+function drawReceiver(){
+  const c=CF,R=recRows(),few=R.length<=40;
+  const inst=[[0,0]];let cur=0;R.forEach(([t,v])=>{inst.push([t,cur],[t,v]);cur=v});inst.push([c.tmax,cur]);
+  const acc=[[0,0]];cur=0;R.forEach(([t,,a])=>{acc.push([t,cur],[t,a]);cur=a});acc.push([c.tmax,cur]);
+  chart($('cR1'),{series:[{pts:inst,c:'--s3',dots:R.map(r=>[r[0],r[1]]),dotLabels:few}],xmax:c.tmax,xlabel:'t (µs)',ylabel:`V (${c.unit})`});
+  chart($('cR2'),{series:[{pts:acc,c:'--s4',dots:R.map(r=>[r[0],r[2]]),dotLabels:few}],xmax:c.tmax,xlabel:'t (µs)',ylabel:`V (${c.unit})`});
+}
+function drawStats(){
+  const c=CF,M=S.M,sR=ser(M,1);
+  let mR=sR[0];sR.forEach(p=>{if(p[1]>mR[1])mR=p});
+  let g={v:-Infinity,j:0,t:0};for(let j=0;j<=M;j++)ser(j,1).forEach(p=>{if(p[1]>g.v)g={v:p[1],j,t:p[0]}});
+  const lossless=c.med.every(m=>m.k===1),vend=sR[sR.length-1][1],first=S.ev[M][0];
+  $('stats').innerHTML=`
+    <div class="stat"><span class="eyebrow">Máximo en el receptor</span><div class="v">${fmt(mR[1])} <small class="s">${esc(c.unit)}</small></div><div class="s">t = ${fmt(mR[0])} µs · ${fmt(mR[1]/c.V0)}·V₀</div></div>
+    <div class="stat"><span class="eyebrow">Máximo en la red</span><div class="v">${fmt(g.v)} <small class="s">${esc(c.unit)}</small></div><div class="s">${nodeName(g.j,M)} · t = ${fmt(g.t)} µs</div></div>
+    <div class="stat"><span class="eyebrow">Primera llegada al receptor</span><div class="v">${first?fmt(first[0]):'—'} <small class="s">µs</small></div><div class="s">${first?`escalón de ${fmt(first[1])} ${esc(c.unit)}`:'no llega antes de t máx'}</div></div>
+    <div class="stat"><span class="eyebrow">Valor en t máx</span><div class="v">${fmt(vend)} <small class="s">${esc(c.unit)}</small></div><div class="s">${lossless?`tiende a V₀ = ${fmt(c.V0)} (régimen permanente)`:'con pérdidas por k'}</div></div>`;
+}
+function coefRows(){
+  const M=S.M,N=M+2,out=[];
+  for(let j=0;j<=M;j++){
+    const zl=S.Zl(j),zr=S.Zr(j),a=j+1,b=j+2;
+    const f=j>0?coef(zl,zr):null,r=j<M?coef(zr,zl):null;
+    out.push({j,name:nodeName(j,M),x:S.X[j],a,b,zl,zr,f,r,N});
+  }
+  return out;
+}
+function drawCoef(){
+  const R=coefRows(),d=v=>v===null?'—':fmt(v);
+  $('tcoef').innerHTML=`<thead><tr><th>Unión</th><th>x (m)</th><th>Z izq. (Ω)</th><th>Z der. (Ω)</th><th>α ida</th><th>β ida</th><th>α vuelta</th><th>β vuelta</th></tr></thead><tbody>${R.map(r=>`<tr><td>${r.name}</td><td>${fmt(r.x)}</td><td>${fmt(r.zl)}</td><td>${fmt(r.zr)}</td>
+    <td>${r.f?`${idx('α',r.a,r.b,r.N)} = ${fmt(r.f.G)}`:'—'}</td><td>${r.f?`${idx('β',r.a,r.b,r.N)} = ${fmt(r.f.T)}`:'—'}</td>
+    <td>${r.r?`${idx('α',r.b,r.a,r.N)} = ${fmt(r.r.G)}`:'—'}</td><td>${r.r?`${idx('β',r.b,r.a,r.N)} = ${fmt(r.r.T)}`:'—'}</td></tr>`).join('')}</tbody>`;
+}
+function buildEvSelect(){
+  const s=$('evn'),M=S.M,old=s.dataset.set?+s.value:M;
+  s.innerHTML=Array.from({length:M+1},(_,j)=>`<option value="${j}">${nodeName(j,M)}</option>`).join('');
+  s.value=Math.min(old,M);
+}
+function evRows(j){let V=0,I=0;return S.ev[j].map(e=>{V+=e[1];I+=e[2];return [e[0],e[1],V,e[2],I]})}
+function drawEv(){
+  const u=CF.unit,ui=UI[u],R=evRows(+$('evn').value);
+  $('tev').innerHTML=`<thead><tr><th>t (µs)</th><th>ΔV (${esc(u)})</th><th>V (${esc(u)})</th><th>ΔI (${esc(ui)})</th><th>I (${esc(ui)})</th></tr></thead><tbody>${R.slice(0,2000).map(r=>`<tr>${r.map(v=>`<td>${fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+$('evn').addEventListener('change',()=>{$('evn').dataset.set=1;drawEv()});
+
+/* ---------- exportar a Excel ---------- */
+function r6(v){return typeof v==='number'&&isFinite(v)?+v.toPrecision(12):v}
+function sheet(aoa,widths){
+  const ws=XLSX.utils.aoa_to_sheet(aoa.map(r=>r.map(r6)));
+  ws['!cols']=(widths||aoa[0].map(()=>14)).map(w=>({wch:w}));
+  return ws;
+}
+function buildWorkbook(){
+  const c=CF,M=S.M,N=M+2,u=c.unit,ui=UI[u],wb=XLSX.utils.book_new();
+  // Resumen
+  const res=[
+    ['Diagrama de Lattice (Bewley) · ondas viajeras de tensión'],
+    ['Generado',new Date().toLocaleString('es-CO')],
+    [],
+    ['Parámetro','Valor','Unidad'],
+    ['V₀',c.V0,u],['t máx solicitado',c.tmaxIn,'µs'],['t máx válido',c.tmax,'µs'],
+    ['Ondas generadas',S.waves.length,''],
+    ['Diagrama recortado por cantidad de ondas',S.lim!==null?'sí':'no',''],
+    [],
+    ['Medio','Tipo','Z (Ω)','L (m)','v (m/µs)','τ (µs)','k','x inicio (m)','x fin (m)'],
+    [1,'Emisor',0,0,'','','',0,0],
+    ...c.med.map((m,i)=>[nMed(i),m.nombre,m.Z,m.L,m.v,m.tau,m.k,S.X[i],S.X[i+1]]),
+    [N,'Receptor','∞',0,'','','',S.X[M],S.X[M]]
+  ];
+  XLSX.utils.book_append_sheet(wb,sheet(res,[26,26,12,12,12,12,8,14,14]),'Resumen');
+  // Coeficientes
+  const co=[['Unión','x (m)','Z izq. (Ω)','Z der. (Ω)','Coef. α ida','α ida','Coef. β ida','β ida','Coef. α vuelta','α vuelta','Coef. β vuelta','β vuelta']];
+  coefRows().forEach(r=>co.push([r.name,r.x,r.zl,r.zr===Infinity?'∞':r.zr,
+    r.f?`α${r.a},${r.b}`:'',r.f?r.f.G:'',r.f?`β${r.a},${r.b}`:'',r.f?r.f.T:'',
+    r.r?`α${r.b},${r.a}`:'',r.r?r.r.G:'',r.r?`β${r.b},${r.a}`:'',r.r?r.r.T:'']));
+  XLSX.utils.book_append_sheet(wb,sheet(co,[22,10,11,11,12,10,12,10,13,10,13,10]),'Coeficientes');
+  // Ondas
+  const on=[['Onda','Medio','Sentido','t salida (µs)','t llegada (µs)',`V salida (${u})`,`V llegada (${u})`,`I salida (${ui})`,`I llegada (${ui})`,'Continúa tras t máx','Onda madre','Origen','Factor']];
+  for(const w of S.waves){
+    const Z=c.med[w.m].Z;let orig='Lanzada por el emisor',f=1;
+    if(w.p>=0){const o=origin(S.waves[w.p],w,N);orig=`${o.g==='α'?'Reflexión':'Transmisión'} ${o.g}${o.a},${o.b}`;f=o.f}
+    on.push([w.id,nMed(w.m),w.d===1?'→ receptor':'← emisor',w.t0,w.t1,w.a0,w.a1,w.d*w.a0/Z,w.d*w.a1/Z,w.tr?'sí':'no',w.p>=0?w.p:'',orig,f]);
+  }
+  XLSX.utils.book_append_sheet(wb,sheet(on,[7,7,12,13,13,13,13,13,13,10,10,20,10]),'Ondas');
+  // Receptor (las dos gráficas de la página)
+  const rc=[['t (µs)',`V instantánea (${u})`,`V acumulada (${u})`]];recRows().forEach(r=>rc.push(r));
+  XLSX.utils.book_append_sheet(wb,sheet(rc,[12,20,20]),'Receptor');
+  // Tensiones y corrientes en uniones: una fila por instante de cambio
+  const times=[...new Set(S.ev.flatMap(E=>E.map(e=>Math.round(e[0]*1e9)/1e9)))].sort((a,b)=>a-b);
+  const grid=q=>{
+    const head=['t (µs)',...Array.from({length:M+1},(_,j)=>`${nodeName(j,M)} (${q===1?u:ui})`)],out=[head];
+    const ptr=Array(M+1).fill(0),acc=Array(M+1).fill(0);
+    out.push([0,...acc.map(()=>0)]);
+    for(const t of times){
+      for(let j=0;j<=M;j++){const E=S.ev[j];while(ptr[j]<E.length&&E[ptr[j]][0]<=t+1e-9){acc[j]+=E[ptr[j]][q];ptr[j]++}}
+      if(t===0)out[1]=[0,...acc];else out.push([t,...acc]);
+    }
+    out.push([c.tmax,...acc]);
+    return out;
+  };
+  const wid=[10,...Array(M+1).fill(22)];
+  XLSX.utils.book_append_sheet(wb,sheet(grid(1),wid),'Tensión uniones');
+  XLSX.utils.book_append_sheet(wb,sheet(grid(2),wid),'Corriente uniones');
+  // Escalones por unión (formato largo)
+  const es=[['Unión','t (µs)',`ΔV (${u})`,`V (${u})`,`ΔI (${ui})`,`I (${ui})`]];
+  for(let j=0;j<=M;j++)evRows(j).forEach(r=>es.push([nodeName(j,M),...r]));
+  XLSX.utils.book_append_sheet(wb,sheet(es,[22,12,14,14,14,14]),'Escalones');
+  return wb;
+}
+let DL;
+(async()=>{try{DL=await window.claude?.use?.('downloads')}catch(e){DL=null}})();
+$('xlsx').onclick=async()=>{
+  const m=$('xlmsg');m.className='xlmsg';
+  if(typeof XLSX==='undefined'){m.className='xlmsg err';m.textContent='No se cargó el generador de Excel; recarga la página.';return}
+  if(!S){return}
+  const wb=buildWorkbook();
+  const buf=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+  const name=`lattice_${S.M+2}medios_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const dl=DL===undefined?await (window.claude?.use?.('downloads')??Promise.resolve(null)).catch(()=>null):DL;
+  if(dl){
+    $('xlsx').disabled=true;m.textContent='Confirma la descarga…';
+    try{await dl.save({filename:name,data:blob});m.className='xlmsg ok';m.textContent=`Guardado: ${name}`}
+    catch(e){const code=e&&e.code;m.className='xlmsg'+(code==='declined'?'':' err');m.textContent=code==='declined'?'Descarga cancelada.':code==='rate_limited'?'Ya hay una descarga pendiente; espera un momento.':'La descarga no está disponible en esta vista.'}
+    finally{$('xlsx').disabled=false}
+  }else{
+    // fuera del visor de Claude (p. ej., el archivo abierto directamente en un navegador)
+    try{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);m.className='xlmsg ok';m.textContent=`Descargado: ${name}`}
+    catch(e){m.className='xlmsg err';m.textContent='La descarga no está disponible en esta vista.'}
+  }
+};
+
+/* ---------- arranque ---------- */
+$('add').onclick=()=>{addRow('aerea');go()};
+$('ctl').addEventListener('input',e=>{
+  if(e.target.id==='cw')$('cwo').textContent=e.target.value+' px';
+  if(e.target.id==='alt')$('alto').textContent=e.target.value+' px';
+  if(['lab','mag','eti','esc','cw','alt'].includes(e.target.id)){clearTimeout(tmr);tmr=setTimeout(()=>{if(S)drawLattice()},60);return}
+  go()});
+$('ctl').addEventListener('change',e=>{if(e.target.id==='unit')go()});
+addRow('aerea');addRow('cable');
+render();
+let lastW=$('latwrap').clientWidth;
+new ResizeObserver(()=>{const w=$('latwrap').clientWidth;if(Math.abs(w-lastW)>4&&S){lastW=w;drawLattice()}}).observe($('latwrap'));
+/* ---------- portada ---------- */
+$('logo2').src=document.querySelector('#sim .brand img').src;
+const REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ease=t=>1-Math.pow(1-t,3);
+function start(){
+  if(REDUCE||!document.body.animate){showSim(false);return}
+  playWarp(()=>showSim(true));
+}
+function showSim(anim){
+  $('intro').hidden=true;$('sim').hidden=false;scrollTo(0,0);
+  lastW=$('latwrap').clientWidth;render();
+  if(!anim||!S)return;
+  $('sim').animate([{opacity:0,transform:'translateY(16px)'},{opacity:1,transform:'none'}],{duration:520,easing:'cubic-bezier(.2,.7,.2,1)'});
+  drawIn();
+}
+
+/* Transición: una onda real (mismo motor) se propaga y se ramifica a pantalla completa */
+function playWarp(done){
+  const W=innerWidth,H=innerHeight,ns='http://www.w3.org/2000/svg';
+  const toy={V0:1,tmax:60,eps:.03,maxW:400,med:[{Z:400,L:3000,v:300,k:1},{Z:40,L:600,v:150,k:1},{Z:400,L:1800,v:300,k:1}]};
+  const T=simulate(toy),D=1250,T0=160,anims=[];
+  const mx=Math.max(24,W*.07),top=H*.08,bot=Math.max(H*.22,190),tt=toy.med.reduce((a,m)=>a+m.tau,0);
+  const X=[mx];toy.med.forEach(m=>X.push(X[X.length-1]+(W-2*mx)*m.tau/tt));
+  const Y=t=>top+t/toy.tmax*(H-top-bot);
+  const ov=document.createElement('div');ov.className='warp';ov.setAttribute('aria-hidden','true');
+  ov.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"></svg><div class="cap"><span class="eyebrow">Propagando la onda</span><b>Lattice de Bewley</b><span class="clk">t = 0.0 µs</span></div><span class="skip">toca para saltar</span>`;
+  document.body.append(ov);
+  const svg=ov.querySelector('svg'),clk=ov.querySelector('.clk');
+  X.forEach((x,i)=>{const l=document.createElementNS(ns,'line');l.setAttribute('class','wb2');l.setAttribute('x1',x);l.setAttribute('x2',x);l.setAttribute('y1',top);l.setAttribute('y2',H-bot);svg.append(l);
+    l.animate([{transform:'scaleY(0)'},{transform:'scaleY(1)'}],{duration:420,delay:i*45,easing:'cubic-bezier(.2,.7,.2,1)',fill:'backwards'})});
+  for(const w of T.waves){
+    const xa=w.d===1?X[w.m]:X[w.m+1],xb0=w.d===1?X[w.m+1]:X[w.m];
+    const t1=Math.min(w.t1,toy.tmax),xb=xa+(xb0-xa)*(t1-w.t0)/(w.t1-w.t0);
+    const y1=Y(w.t0),y2=Y(t1),len=Math.hypot(xb-xa,y2-y1);if(len<1)continue;
+    const l=document.createElementNS(ns,'line');
+    l.setAttribute('class','wl '+(w.d===1?'f':'b'));
+    l.setAttribute('x1',xa);l.setAttribute('y1',y1);l.setAttribute('x2',xb);l.setAttribute('y2',y2);
+    const a=Math.min(1,Math.abs(w.a0));l.style.strokeWidth=(1.2+2.8*a).toFixed(2);l.style.opacity=(.25+.75*a).toFixed(2);
+    l.style.strokeDasharray=len;l.style.strokeDashoffset=len;svg.append(l);
+    anims.push(l.animate([{strokeDashoffset:len},{strokeDashoffset:0}],{duration:Math.max(16,(t1-w.t0)/toy.tmax*D),delay:T0+w.t0/toy.tmax*D,easing:'linear',fill:'forwards'}));
+  }
+  const tl=document.timeline,t0=tl.currentTime;anims.forEach(a=>{try{a.startTime=t0}catch(e){}});let raf,ended=false;
+  const tick=()=>{const f=Math.min(1,Math.max(0,(tl.currentTime-t0-T0)/D));clk.textContent=`t = ${(f*toy.tmax).toFixed(1)} µs`;if(f<1)raf=requestAnimationFrame(tick)};
+  raf=requestAnimationFrame(tick);
+  const finish=()=>{
+    if(ended)return;ended=true;cancelAnimationFrame(raf);clearTimeout(tm);
+    done();
+    const a=ov.animate([{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(1.06)'}],{duration:480,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});
+    a.onfinish=()=>ov.remove();
+  };
+  const tm=setTimeout(finish,T0+D+220);
+  ov.addEventListener('click',finish);
+}
+
+/* Entrada del simulador: el diagrama se dibuja en orden de tiempo y las gráficas avanzan con él */
+function drawIn(){
+  const svg=$('lat'),Tm=CF.tmax,D=2600,DL=260,ns='http://www.w3.org/2000/svg';
+  const at=t=>DL+Math.min(1,Math.max(0,t/Tm))*D;
+  const many=S.waves.length>1500,anims=[];
+  const fade=(el,t,extra={})=>anims[anims.length]=el.animate([{opacity:0,...(extra.from||{})},{opacity:1,...(extra.to||{})}],{duration:extra.dur||260,delay:at(t),easing:'ease-out',fill:'backwards'});
+  svg.querySelectorAll('g[data-id]').forEach(g=>{
+    const w=S.waves[+g.dataset.id],ln=g.querySelector('.w');
+    if(many||w.tr){fade(ln,w.t0,{dur:400});return}
+    const len=Math.hypot(ln.x2.baseVal.value-ln.x1.baseVal.value,ln.y2.baseVal.value-ln.y1.baseVal.value);
+    ln.style.strokeDasharray=len;
+    const an=ln.animate([{strokeDashoffset:len},{strokeDashoffset:0}],{duration:Math.max(16,(Math.min(w.t1,Tm)-w.t0)/Tm*D),delay:at(w.t0),easing:'linear',fill:'backwards'});anims.push(an);
+    an.onfinish=()=>{ln.style.strokeDasharray=''};
+  });
+  svg.querySelectorAll('polygon.ar[data-w]').forEach(e=>{const w=S.waves[+e.dataset.w];fade(e,w.t0+.56*(w.t1-w.t0),{dur:120})});
+  svg.querySelectorAll('text.lb[data-w]').forEach(e=>{const w=S.waves[+e.dataset.w];fade(e,w.t0+.45*(Math.min(w.t1,Tm)-w.t0),{dur:300})});
+  svg.querySelectorAll('[data-t]').forEach(e=>{const t=+e.dataset.t;
+    if(e.classList.contains('rvg'))fade(e,t,{dur:380,from:{transform:'translateX(-14px)'},to:{transform:'none'}});else fade(e,t,{dur:200})});
+  // línea de tiempo que barre el diagrama y recorte de las gráficas sincronizado
+  const sw=document.createElementNS(ns,'line');sw.setAttribute('class','sweep');sw.setAttribute('x1',LG.X[0]-60);sw.setAttribute('x2',LG.W-8);svg.append(sw);
+  const st=document.createElementNS(ns,'text');st.setAttribute('class','sweept');st.setAttribute('x',LG.X[0]+8);svg.append(st);
+  const clips=['cR1','cR2'].map((id,i)=>{const c=$(id),ser=c.querySelector('.ser');if(!ser)return null;
+    const cp=document.createElementNS(ns,'clipPath');cp.id='clipR'+i;const r=document.createElementNS(ns,'rect');r.setAttribute('x',0);r.setAttribute('y',0);r.setAttribute('height',1000);r.setAttribute('width',0);cp.append(r);c.prepend(cp);ser.setAttribute('clip-path',`url(#clipR${i})`);return {c,r,ser,cp}});
+  // valores de los indicadores contando desde cero
+  const nums=[...document.querySelectorAll('#stats .stat .v')].map(v=>{const n=v.firstChild;if(!n||n.nodeType!==3)return null;const val=parseFloat(n.textContent.replace('−','-'));return isFinite(val)?{n,val,txt:n.textContent}:null}).filter(Boolean);
+  const tl=document.timeline,t0=tl.currentTime;anims.forEach(a=>{try{a.startTime=t0}catch(e){}});
+  const step=()=>{
+    const now=tl.currentTime,f=Math.min(1,Math.max(0,(now-t0-DL)/D)),t=f*Tm,y=LG.Y(t);
+    sw.setAttribute('y1',y);sw.setAttribute('y2',y);st.setAttribute('y',y-6);st.textContent=`t = ${fmt(t)} µs`;
+    clips.forEach(k=>{if(k)k.r.setAttribute('width',60+f*(640-60-16)+(f>=1?40:0))});
+    const g=ease(Math.min(1,(now-t0)/(DL+D*.6)));nums.forEach(o=>{o.n.textContent=(g>=1?o.txt:fmt(o.val*g)+' ')});
+    if(f<1)requestAnimationFrame(step);
+    else{sw.animate([{opacity:1},{opacity:0}],{duration:400,fill:'forwards'}).onfinish=()=>{sw.remove();st.remove()};
+      clips.forEach(k=>{if(k){k.ser.removeAttribute('clip-path');k.cp.remove()}});nums.forEach(o=>o.n.textContent=o.txt)}
+  };
+  requestAnimationFrame(step);
+}
+function back(){closePop();$('sim').hidden=true;$('intro').hidden=false;scrollTo(0,0)}
+$('start').onclick=start;$('start2').onclick=start;$('back').onclick=back;
+if(location.hash==='#simulador')start();
+
+</script>
+
+</body>
+</html>
